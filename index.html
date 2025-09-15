@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Number Riddle Guessing Game</title>
+  <meta name="description" content="Solve three number riddles by guessing the correct numbers across three rounds." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#0b1020; --panel:#101628; --soft:#151c31; --text:#e7eefb; --muted:#99a7c2; --brand:#7c5cff; --good:#22c55e; --bad:#ef4444;
+      --ring:0 0 0 4px rgba(124,92,255,.25);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:radial-gradient(1200px 600px at 10% -10%,#182341 0%,#0b1020 45%) fixed;color:var(--text);}
+    .container{max-width:900px;margin:0 auto;padding:24px}
+
+    header{display:flex;align-items:center;gap:12px;margin:12px 0 20px}
+    .logo{display:grid;place-items:center;width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#7c5cff,#2dd4bf)}
+    .logo span{font-weight:800}
+    h1{font-size:clamp(24px,3.5vw,40px);margin:0;letter-spacing:.3px}
+    p.sub{margin:.25rem 0 0;color:var(--muted)}
+
+    .card{background:linear-gradient(180deg,var(--panel),#0f1527 70%);border:1px solid #1e2a4a;box-shadow:0 10px 40px rgba(0,0,0,.45);
+      border-radius:18px;padding:22px}
+
+    .topbar{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-bottom:16px}
+    .progress{flex:1;height:10px;border-radius:999px;background:#0d1426;overflow:hidden;border:1px solid #1e2a4a}
+    .progress>span{display:block;height:100%;width:0;background:linear-gradient(90deg,#2dd4bf,#7c5cff);transition:width .5s ease}
+
+    .round-tag{font-size:13px;color:var(--muted)}
+
+    .riddle{font-size:clamp(16px,2.4vw,22px);line-height:1.4;background:var(--soft);border-radius:14px;padding:16px;border:1px solid #1e2a4a}
+
+    .controls{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:16px}
+    input[type=number]{appearance:textfield;background:#0c1326;border:1px solid #2a365c;color:var(--text);padding:14px 14px;border-radius:12px;font-size:16px;flex:1;min-width:180px;outline:none}
+    input[type=number]:focus{box-shadow:var(--ring);border-color:#405194}
+    .btn{background:linear-gradient(180deg,#2dd4bf,#1fb3a4);border:none;color:#07211f;font-weight:800;letter-spacing:.3px;padding:14px 18px;border-radius:12px;cursor:pointer;transition:transform .05s ease, filter .2s ease}
+    .btn:hover{filter:brightness(1.05)}
+    .btn:active{transform:translateY(1px)}
+    .btn.secondary{background:linear-gradient(180deg,#7c5cff,#5f43ff);color:white}
+    .btn.ghost{background:#0c1326;color:var(--text);border:1px solid #2a365c}
+
+    .status{min-height:28px;margin-top:10px;color:var(--muted)}
+    .status strong{color:var(--text)}
+
+    .toast{position:fixed;inset:auto 0 24px 0;display:grid;place-items:center;pointer-events:none}
+    .toast>div{background:#0c1326;border:1px solid #2a365c;color:var(--text);padding:12px 14px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.4);opacity:0;transform:translateY(12px);transition:opacity .25s, transform .25s}
+    .toast.show>div{opacity:1;transform:translateY(0)}
+
+    .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+
+    footer{margin-top:28px;color:var(--muted);font-size:12px;display:flex;gap:10px;align-items:center;justify-content:space-between}
+    .inline-list{display:flex;gap:8px;flex-wrap:wrap}
+
+    .summary{display:none;margin-top:16px;padding:16px;border:1px dashed #2a365c;border-radius:14px;background:#0c1326}
+    .summary.show{display:block}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="logo" aria-hidden="true">🎯</div>
+      <div>
+        <h1>Number Riddle Guessing Game</h1>
+        <p class="sub">Three rounds. Three riddles. Guess the correct number to advance.</p>
+      </div>
+    </header>
+
+    <main class="card" role="main">
+      <div class="topbar" aria-label="round progress">
+        <div class="progress" aria-hidden="true"><span id="progressBar"></span></div>
+        <div class="round-tag"><strong>Round <span id="roundIdx">1</span></strong> of 3</div>
+      </div>
+
+      <div class="riddle" id="riddleText">I am an odd number. Take away a letter and I become even. What number am I?</div>
+
+      <form class="controls" id="guessForm" autocomplete="off">
+        <label class="sr-only" for="guess">Enter your guess</label>
+        <input id="guess" name="guess" type="number" inputmode="numeric" placeholder="Enter your number…" required />
+        <button class="btn" type="submit">Submit Guess</button>
+        <button class="btn ghost" type="button" id="hintBtn" aria-describedby="hintText">Hint</button>
+        <button class="btn secondary" type="button" id="skipBtn">Skip</button>
+      </form>
+
+      <div class="status" aria-live="polite" id="status">
+        You have <strong id="lives">∞</strong> attempts. Feedback appears here.
+      </div>
+
+      <section class="summary" id="summary">
+        <h3 style="margin:0 0 8px 0">Round Summary</h3>
+        <div id="summaryBody"></div>
+      </section>
+
+    </main>
+
+    <footer>
+      <div class="inline-list">
+        <span>⌨️ Tip: Press <strong>Enter</strong> to submit.</span>
+        <span>💡 You can request a hint once per round.</span>
+      </div>
+      <button class="btn ghost" id="restartBtn" aria-label="Restart game">Restart</button>
+    </footer>
+  </div>
+
+  <div class="toast" id="toast" aria-live="polite"><div id="toastMsg">Nice!</div></div>
+
+  <script>
+    // Game data: three riddle rounds
+    const rounds = [
+      {
+        question: "SSBhbSBhbiBvZGQgbnVtYmVyLiBUYWtlIGF3YXkgYSBsZXR0ZXIgYW5kIEkgYmVjb21lIGV2ZW4=",
+        answer: 7,
+        hint: "Think about the word form of the number.",
+      },
+      {
+        question: "SSBhbSBKYWNrIFdvbmcncyBzaWxlbnQga2V5IHRvIGEgY3Jvd2RlZCBuYXRpb24sCmEgbG9ja3BpY2sgZm9yIGZvcm1zIHlldCBhIHZhdWx0IGZvciBKYWNrJ3MgbGlmZS4KSSBkb27igJl0IHNwZWFrLCBidXQgSSBjYWxsIHlvdSBieSBuaW5lIHF1aWV0IHJvb21zCndoZXJlIGRpZ2l0cyBsb2RnZSBsaWtlIHRlbmFudHMgb24gYSBzaW5nbGUgbGVhc2UuCkNsZXJrcyBjb3VydCBtZTsgdGhpZXZlcyBjb3VydCBtZSBoYXJkZXIuCkphY2sncyBiYW5rIG5vZCB3aGVuIEkgYXBwZWFyOyBKYWNrJ3MgZG9vcnMgb3BlbiB3aXRob3V0IGEgaGluZ2UuCgpNeSByaHl0aG0gaXMgYSBzdHJhbmdlIHdhbHR64oCUdGhyZWUsIHRoZW4gdHdvLCB0aGVuIGZvdXLigJQKYSBkYW5jZSB0aGF0IG5ldmVyIGNoYW5nZXMgcGFydG5lcnMsIGV2ZW4gd2hlbiB5b3UgZG8uCkkgYW0gYm9ybiBpbiBhIGdyYXkgdGVtcGxlIG9mIGxlZGdlcnMgYW5kIGxlZGdlcywKc3RhbXBlZCB3aXRob3V0IGluayBpbnRvIHBheXJvbGwgZHJlYW1zIGFuZCBwZW5zaW9uIHdpbnRlcnMuCkkgYW0gbm90IEphY2sncyBuYW1lLCBub3IgaGlzIGZhY2UsIG5vciBoaXMgdm9pY2XigJQKeWV0IEkgY2FuIHN1bW1vbiBqYWNrJ3Mgd2FnZXMsIGhpcyB0YXhlcywgaGlzIHllYXJzLgoKSmFjayBndWFyZHMgbWUgbGlrZSBhIGNhbmRsZSBpbiB3aW5kOgpJIHdhcm0gd2hlbiBrZXB0LCBJIHJ1aW4gd2hlbiBzcGlsbGVkLgpXaGF0IGFtIEk/",
+        answer: 984800459, // ones=4, tens=9, hundreds=1
+        hint: "Let the ones digit be x. Tens is x+5. Hundreds is (x+5)-8.",
+      },
+      {
+        question: "If two’s company and three’s a crowd, what are four and five?",
+        answer: 9,
+        hint: "Try simple arithmetic with the words.",
+      }
+    ];
+
+    let state = {
+      idx: 0,
+      attempts: 0,
+      usedHint: false,
+      score: 0,
+      history: [],
+    };
+
+    const riddleText = document.getElementById('riddleText');
+    const guessForm = document.getElementById('guessForm');
+    const guessInput = document.getElementById('guess');
+    const status = document.getElementById('status');
+    const progressBar = document.getElementById('progressBar');
+    const roundIdx = document.getElementById('roundIdx');
+    const lives = document.getElementById('lives');
+    const hintBtn = document.getElementById('hintBtn');
+    const skipBtn = document.getElementById('skipBtn');
+    const restartBtn = document.getElementById('restartBtn');
+    const toast = document.getElementById('toast');
+    const toastMsg = document.getElementById('toastMsg');
+    const summary = document.getElementById('summary');
+    const summaryBody = document.getElementById('summaryBody');
+
+    function clamp(n, min, max){ return Math.max(min, Math.min(n, max)); }
+
+    function setProgress(){
+      const pct = ((state.idx) / rounds.length) * 100;
+      progressBar.style.width = pct + '%';
+      roundIdx.textContent = Math.min(rounds.length, state.idx + 1);
+    }
+
+    function showToast(msg){
+      toastMsg.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(()=> toast.classList.remove('show'), 1600);
+    }
+
+    function renderRound(){
+      const r = rounds[state.idx];
+      riddleText.textContent = r.question;
+      status.innerHTML = `You have <strong id="lives">∞</strong> attempts. Feedback appears here.`;
+      guessInput.value = '';
+      guessInput.focus();
+      state.attempts = 0;
+      state.usedHint = false;
+      summary.classList.remove('show');
+      setProgress();
+    }
+
+    function endRound(correct, value){
+      const r = rounds[state.idx];
+      const entry = {
+        round: state.idx + 1,
+        attempts: state.attempts,
+        usedHint: state.usedHint,
+        correct: correct,
+        yourAnswer: value,
+        expected: r.answer
+      };
+      state.history.push(entry);
+
+      // Score: base 100 per round, -10 per extra attempt beyond the first, -15 if hint used, min 10
+      let points = correct ? Math.max(10, 100 - Math.max(0, (entry.attempts - 1)) * 10 - (entry.usedHint ? 15 : 0)) : 0;
+      state.score += points;
+
+      // Summary panel
+      summaryBody.innerHTML = `
+        <div><strong>Result:</strong> ${correct ? '✅ Correct' : '❌ Incorrect (revealed)'}</div>
+        <div><strong>Your guess:</strong> ${value ?? '—'}</div>
+        <div><strong>Answer:</strong> ${r.answer}</div>
+        <div><strong>Attempts:</strong> ${entry.attempts}</div>
+        <div><strong>Hint used:</strong> ${entry.usedHint ? 'Yes' : 'No'}</div>
+        <div><strong>Points this round:</strong> ${points}</div>
+      `;
+      summary.classList.add('show');
+
+      // advance after a brief pause, or end game if last round
+      setTimeout(()=>{
+        if(state.idx < rounds.length - 1){
+          state.idx++;
+          renderRound();
+        } else {
+          finishGame();
+        }
+      }, 1100);
+    }
+
+    function finishGame(){
+      const total = state.score;
+      const max = rounds.length * 100;
+      const pct = Math.round((total / max) * 100);
+      progressBar.style.width = '100%';
+
+      const details = state.history.map(h=>`Round ${h.round}: ${h.correct ? '✅' : '❌'} (${h.attempts} attempt${h.attempts===1?'':'s'}${h.usedHint?', hint':''})`).join(' · ');
+
+      riddleText.innerHTML = `
+        <strong>Game complete!</strong><br>
+        Score: <strong>${total}</strong> / ${max} (<strong>${pct}%</strong>)<br>
+        <span style="color:var(--muted)">${details}</span>
+      `;
+
+      document.querySelector('.controls').style.display = 'none';
+      status.innerHTML = `Want to try again? Click <strong>Restart</strong>.`;
+      showToast('🎉 Nicely done!');
+    }
+
+    guessForm.addEventListener('submit', (e)=>{
+      e.preventDefault();
+      const raw = guessInput.value.trim();
+      if(raw === ''){
+        showToast('Please enter a number.');
+        guessInput.focus();
+        return;
+      }
+      const n = Number(raw);
+      if(!Number.isFinite(n)){
+        showToast('That doesn\'t look like a number.');
+        return;
+      }
+
+      state.attempts++;
+      const target = rounds[state.idx].answer;
+      if(n === target){
+        status.innerHTML = `<span style="color:var(--good)"><strong>Correct!</strong> ${n} is the answer. Advancing…</span>`;
+        showToast('✅ Correct!');
+        endRound(true, n);
+      } else {
+        const hint = n < target ? 'Too low' : 'Too high';
+        status.innerHTML = `<span style="color:var(--bad)"><strong>${hint}.</strong> Try again.</span>`;
+        showToast('Keep going!');
+        guessInput.select();
+      }
+    });
+
+    hintBtn.addEventListener('click', ()=>{
+      if(state.usedHint){
+        showToast('You\'ve already used the hint for this round.');
+        return;
+      }
+      state.usedHint = true;
+      status.innerHTML = `<strong>Hint:</strong> ${rounds[state.idx].hint}`;
+      showToast('💡 Hint revealed');
+    });
+
+    skipBtn.addEventListener('click', ()=>{
+      const target = rounds[state.idx].answer;
+      status.innerHTML = `Skipped. The answer was <strong>${target}</strong>.`;
+      showToast('⏭️ Skipped');
+      endRound(false, null);
+    });
+
+    restartBtn.addEventListener('click', ()=>{
+      state = { idx:0, attempts:0, usedHint:false, score:0, history:[] };
+      document.querySelector('.controls').style.display = '';
+      renderRound();
+      showToast('🔁 Restarted');
+    });
+
+    // Initialize
+    setProgress();
+    renderRound();
+  </script>
+</body>
+</html>
